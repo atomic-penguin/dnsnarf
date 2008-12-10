@@ -2,10 +2,10 @@
 #############################################################################
 # Authors: Eric G. Wolfe <wolfe21 (at) marshall (dot) edu>                  #
 #          Gerald Hevener <hevenerg (at) marshall (dot) edu>                #
-# Program: dnsnarf.pl 1.1                                                   #
+# Program: dnsnarf.pl 1.2b                                                  #
 # Purpose: Grabs DNS zones from a Windows Primary DNS server's              #
 #          remote registry.  Writes a formatted named.conf for use with     #
-#          ISC BIND DNS server, named.                                      #
+#          ISC BIND DNS server.                                             #
 #                                                                           #
 # Copyright (c) 2007-2008                                                   #
 # All rights reserved.                                                      #
@@ -25,7 +25,7 @@ use Log::Dispatch::Syslog;
 
 # Credential Section
 my $username = q/DNSDataAccess/;
-my $password = q/Really_Strong_Password/;
+my $password = q/Really_Strong_Password!!!/;
 my $domain   = q/CONTOSO.COM/;
 
 # Primary DNS Server Section
@@ -46,7 +46,7 @@ our $zone_file_path = 'slaves';
 # special cases such as stub zones,
 # which cannot be transferred by a slave.
 # Use regex conventions for this variable.
-our $exceptions = qr/(foo.com|foo.org)/;
+our $exceptions = q/(foo.com|bar.net)/;
 
 # CODE SECTION
 
@@ -98,9 +98,11 @@ sub print_named_conf(@) {
     print ZONES "include \"$roothintsconf\";\n";
     print ZONES "include \"$rfc1912conf\";\n\n";
 
-    # Build zones section of named.conf, dynamically 
+    # Build zones section of named.conf, dynamically
     foreach my $zone (@dnszones) {
-        if ( $zone !~ $exceptions ) {
+        if (   ( ( defined $exceptions ) && ( $zone !~ $exceptions ) )
+            || ( $exceptions eq '' ) )
+        {
             print ZONES "zone $zone in {\n";
             print ZONES "\ttype slave;\n";
             print ZONES "\tfile \"$zone_file_path/db.$zone\";\n";

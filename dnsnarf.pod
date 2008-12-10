@@ -69,8 +69,10 @@ The registry location of the DNS Zones to be imported.  You should not have to c
 =item $exceptions
 
 This variable is a regex of exceptions NOT to grab from the Windows server.
-For example, you may not want to grab stub zones because they are not
-transferrable.
+For example, you may not want to grab stub zones because stub zones are not
+transferrable.  If there are no exceptions, leave this value blank.
+If you comment out the $exceptions variable undefine the $exceptions variable, 
+dnsnarf will write an empty named.conf.
 
 =back
 
