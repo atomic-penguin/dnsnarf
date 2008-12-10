@@ -1,0 +1,40 @@
+# ACL for Windows DNS
+acl "contoso.com-dc" {
+	192.168.0.2;
+	192.168.0.3;
+};
+
+# ACL for Linux Slaves
+acl "linux-dns" {
+	192.168.0.4;
+	192.168.0.5;
+	192.168.0.6;
+};
+
+# ACL for external organization
+acl "parter.contoso.com-dc" {
+	192.168.1.2;
+	192.168.1.3;
+};
+
+acl "lan-clients" }
+    192.168.253.0/24;
+    192.168.254.0/24;
+};
+
+# Alias for DNS master servers
+# dnsnarf uses the 'default' alias as
+# a master for all zones
+masters default { 192.168.0.2; 192.168.0.3; };
+
+options {
+	allow-update-forwarding { lan-clients; };
+    directory "/var/named";
+    allow-transfer { contoso.com-dc; linux-dns; partner.contoso.com-dc; };
+    recursive-clients       10000;
+	check-names slave ignore;
+	allow-notify { contoso.com-dc; linux-dns; partner.contoso.com-dc; localhost; };
+	zone-statistics yes;
+	statistics-file "/var/named/data/named.stats";
+};
+

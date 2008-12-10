@@ -1,0 +1,26 @@
+# This is an alias used for the master
+# statement of each zone
+masters default { 192.168.0.10; };
+
+acl "contoso.com-internal-if" {
+	192.168.0.10;
+    192.168.0.11;
+    192.168.0.12;
+};
+
+acl "contoso.com-external-if" {
+    1.1.1.1;
+    1.2.3.4;
+};
+
+acl "partner.contoso.com-external" {
+    4.3.2.1;
+};
+
+options {
+    directory "/var/named";
+    recursion no;
+    allow-transfer { contoso.com-internal-if; contoso.com-external-if; partner.contoso.com-external; };
+    allow-notify { contoso.com-internal-if; contoso.com-external-if; partner.contoso.com-external; localhost; };
+};
+

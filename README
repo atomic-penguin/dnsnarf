@@ -1,0 +1,26 @@
+INSTALLATION
+1.  Just copy the two files, dnsnarf.pl and dnsnarf.pod to /usr/local/bin chmod.   
+    cp dnsnarf.pl dnsnarf.pod /usr/local/bin
+
+2.  There are two template directories.  The set of templates in
+    internal.templates is for an internal DNS server.
+    The other directory is external.templates, which is for an Internet
+    facing DNS server.
+
+3.  Copy named.options, named.rfc1912.zones, named.root.hints from the
+    appropriate template directory
+
+4.  Create a dnsnarf service account in Active Directory, give the service
+    account a good strong password.  Configure a GPO:
+
+    a) Configure a key:
+    HKLM\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg
+
+    b) Give your dnsnarf service account 'Read' and 'Apply GPO' permissions
+    for the GPO registry key you previously configured.
+
+5.  You should be able to test the dnsnarf script at this point.  If
+    everything works, then you can configure a cron job to periodically
+    grab new zone names from a remote registry.
+
+DOCUMENTATION see 'perldoc dnsnarf'

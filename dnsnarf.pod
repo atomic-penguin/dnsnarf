@@ -1,0 +1,130 @@
+
+=pod
+
+=head1 NAME
+
+DNSnarf - Grabs DNS Zones from a Windows Server DNS Primary 
+
+=head1 VERSION
+
+This documentation refers to DNSnarf version 1.1
+
+=head1 USAGE
+
+=over
+
+=item 1)
+/path/to/dnsnarf.pl
+
+=item 2)
+ln -s /path/to/dnsnarf.pl /etc/cron.hourly/dnsnarf
+
+=back
+
+=head1 DESCRIPTION
+
+This program will read DNS Zones from a Primary DNS server
+running on Windows Server.  We needed some way to update the list of
+zones on our Secondary DNS Linux Servers.  The program will connect
+to a remote registry on a Windows DNS Server, read the zones, and
+output a named.conf file to be used with BIND.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head2 Variable Configuration
+
+All of the customization should be done by changing the configuration
+variables in the program.
+
+=head3 Credentials Section
+
+=over
+
+=item $username
+
+The service account to connect to the Windows DNS Server.  Defaults to 'dnsdataaccess'.
+
+=item $password
+
+The service account to connect to the Windows DNS Server. Defaults to 'kdc01.contoso.com'.
+
+=item $domain
+
+The domain name of your Windows environment. Defaults to 'CONTOSO.COM'.
+
+=back
+
+=head3 Primary DNS Server Section
+
+=over
+
+=item $master_dns
+
+The hostname or IP of the Primary DNS Server to read DNS Zones from. Defaults to a masters alias 'default', you can define this in the /etc/named.options file.
+
+=item $registry_branch
+
+The registry location of the DNS Zones to be imported.  You should not have to change this, it has been tested against Windows Server 2003 and 2008.
+
+=item $exceptions
+
+This variable is a regex of exceptions NOT to grab from the Windows server.
+For example, you may not want to grab stub zones because they are not
+transferrable.
+
+=back
+
+=head1 DEPENDENCIES
+
+You will possibly need the Samba 3 common, utility, or smbclient package from
+your distribution.  Specifically this application uses the L<net(8)/rpc
+registry enumerate> command from the Samba 3 distribution.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this application.
+Please report problems to:
+
+=over
+
+=item Eric G. Wolfe E<lt>wolfe21 (at) marshall (dot) eduE<gt>, or
+
+=item Gerald Hevener E<lt>hevenerg (at) marshall (dot) eduE<gt>
+
+=back
+
+Patches are welcome.
+
+
+=head1 AUTHORS
+
+=over
+
+=item Eric G. Wolfe E<lt>wolfe21 (at) marshall (dot) eduE<gt>
+
+=item Gerald Hevener E<lt>hevenerg (at) marshall (dot) eduE<gt>
+
+=back
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2007-2008
+
+=over
+
+=item Eric G. Wolfe E<lt>wolfe21 (at) marshall (dot) eduE<gt>,
+
+=item Gerald Hevener E<lt>hevenerg (at) marshall (dot) eduE<gt>
+
+=back
+
+All rights reserved.
+
+This application is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut
