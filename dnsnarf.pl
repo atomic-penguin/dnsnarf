@@ -2,7 +2,7 @@
 #############################################################################
 # Authors: Eric G. Wolfe <wolfe21 (at) marshall (dot) edu>                  #
 #          Gerald Hevener <hevenerg (at) marshall (dot) edu>                #
-# Program: dnsnarf.pl 1.2b                                                  #
+# Program: dnsnarf.pl 1.3b                                                  #
 # Purpose: Grabs DNS zones from a Windows Primary DNS server's              #
 #          remote registry.  Writes a formatted named.conf for use with     #
 #          ISC BIND DNS server.                                             #
@@ -25,22 +25,25 @@ use Log::Dispatch::Syslog;
 
 # Credential Section
 my $username = q/DNSDataAccess/;
-my $password = q/Really_Strong_Password!!!/;
+my $password = q/ReallyStrongPassword!!!/;
 my $domain   = q/CONTOSO.COM/;
 
 # Primary DNS Server Section
-my $primary_dns = q/kdc01.contoso.com/;
+my $primary_dns = q/kdc01.marshall.edu/;
 my $registry_branch
     = q/"\\HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DNS Server\\Zones"/;
-our $optionsconf   = "/etc/named.options";
-our $rndcconf      = "/etc/named.rndc";
-our $roothintsconf = "/etc/named.root.hints";
-our $rfc1912conf   = "/etc/named.rfc1912.zones";
 
-# Global variable which will be used in print_named_conf subprocedure
-our $master_dns     = 'default';
-our $sysconfdir     = '/etc';
-our $zone_file_path = 'slaves';
+# Any lines you want included in the top of named.conf
+our @include_lines = (
+    "/etc/named.options",    "/etc/named.rndc",
+    "/etc/named.root.hints", "/etc/named.rfc1912.zones"
+);
+
+# Global variable which will be used for the print_named_conf subprocedure
+our $master_dns      = 'default';
+our $sysconfdir      = '/etc';
+our $zone_file_path  = 'slaves';
+our $zone_count_file = "$sysconfdir/dnsnarf.zonecount";
 
 # Global variable for exceptions
 # special cases such as stub zones,
@@ -49,6 +52,30 @@ our $zone_file_path = 'slaves';
 our $exceptions = q/(foo.com|bar.net)/;
 
 # CODE SECTION
+
+# Pass $level, $message, and $code (1 to exit with error, 0 to exit with success)
+sub log_and_exit($$$) {
+
+    my $level   = shift;
+    my $message = shift;
+    my $code    = shift;
+
+    # Define our pid for use in the log message
+    my $pid = getppid();
+
+    # Log dnsnarf to /var/log/messages with prefix dnsnarf[$pid]
+    # Define our logfile object
+    my $logfile = Log::Dispatch::Syslog->new(
+        name      => 'logfile',
+        min_level => 'info',
+        ident     => "dnsnarf[$pid]"
+    );
+
+    $logfile->log(
+        level   => $level,
+        message => $message,
+    ) and exit $code;
+}
 
 # Subprocedure connect to Windows Server
 # and returns zones in an array
@@ -70,7 +97,6 @@ sub read_remote_registry($$$$$) {
     my $zone_line = qr/^Keyname/;
 
     open( DCERPC, "$net_rpc_registry |" );
-
     while (<DCERPC>) {
         if ( $_ =~ m/$zone_line/ ) {
             my @tmp_line = split( /\s=\s/, $_ );
@@ -78,9 +104,40 @@ sub read_remote_registry($$$$$) {
             push @zone_array, $tmp_line[-1];
         }
     }
-
     close DCERPC;
-    return @zone_array;
+
+    my $last_zone_count = 0;
+
+    # If zone_count_file exists and not zero length
+    if ( -e $zone_count_file && ( -s $zone_count_file != 0 ) ) {
+        open( ZONECOUNT_RO, "<$zone_count_file" ) or die $!;
+        chomp( $last_zone_count = <ZONECOUNT_RO> );
+        close ZONECOUNT_RO;
+
+        # Assume the file does not exist, or zone count is 0
+    }
+    else {
+        $last_zone_count = 0;
+    }
+
+    # If there are more zones than last count, then
+    # write a new zone count to the file.
+    if ( $#zone_array > $last_zone_count ) {
+        open( ZONECOUNT_RW, ">$zone_count_file" ) or die $!;
+        print ZONECOUNT_RW $#zone_array;
+        close ZONECOUNT_RW;
+
+        # Return the zone name structure to main procedure.
+        return @zone_array;
+    }
+    else {
+
+        # There must be no new zones, reloading named is unnecessary.
+        # We'll log and exit with success here.
+        log_and_exit( 'info', "Config not updated, no reloading necessary.",
+            0 );
+    }
+
 }
 
 # Subprocedure, takes an array of zones
@@ -93,10 +150,10 @@ sub print_named_conf(@) {
     open( ZONES, ">$sysconfdir/named.conf" ) or die $!;
 
     # includes at top of named.conf
-    print ZONES "include \"$optionsconf\";\n";
-    print ZONES "include \"$rndcconf\";\n";
-    print ZONES "include \"$roothintsconf\";\n";
-    print ZONES "include \"$rfc1912conf\";\n\n";
+    foreach my $include_line (@include_lines) {
+        print ZONES "include \"$include_line\";\n";
+    }
+    print ZONES "\n";    # One empty line for separation.
 
     # Build zones section of named.conf, dynamically
     foreach my $zone (@dnszones) {
@@ -119,17 +176,6 @@ sub print_named_conf(@) {
 my @zones = read_remote_registry( $username, $password, $domain, $primary_dns,
     $registry_branch );
 
-# Define our pid for use in the log message
-my $pid = getppid();
-
-# Log dnsnarf to /var/log/messages with prefix dnsnarf[$pid]
-# Define our logfile object
-my $logfile = Log::Dispatch::Syslog->new(
-    name      => 'logfile',
-    min_level => 'info',
-    ident     => "dnsnarf[$pid]"
-);
-
 # If we were able to read zones from the remote server
 # then try to build an appropriate named.conf file
 if (@zones) {
@@ -138,22 +184,17 @@ if (@zones) {
     # Build new named.conf file.
     print_named_conf(@zones);
 
-    # Log the configuration update
-    $logfile->log( level => 'info', message => "named.conf updated." );
-
     # RNDC reload
     system('/usr/sbin/rndc reload');
 
-    $logfile->log( level => 'info', message => "rndc reload successful" );
+    # Log the configuration update
+    log_and_exit( 'info', "named.conf updated, rndc reload called", 0 );
 
-    # If no zones were returned by the read_remote_registry
-    # function, then log the error and kill dnsnarf.
 }
+
+# If no zones were returned by the read_remote_registry
+# function, then log the error and kill dnsnarf.
 else {
-
-    $logfile->log(
-        level   => 'error',
-        message => "Error reading zones, not creating named.conf"
-    ) and die("Error reading zones, not creating named.conf\n");
-
+    log_and_exit( 'error', "Error reading zones, not creating named.conf",
+        1 );
 }
