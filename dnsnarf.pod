@@ -7,7 +7,7 @@ DNSnarf - Grabs DNS Zones from a Windows Server DNS Primary
 
 =head1 VERSION
 
-This documentation refers to DNSnarf version 1.1
+This documentation refers to DNSnarf version 1.4
 
 =head1 USAGE
 
